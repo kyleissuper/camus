@@ -3,14 +3,29 @@ import logging
 
 import sqlalchemy
 from quart import (Blueprint, copy_current_websocket_context, flash, redirect,
-                   render_template, session, websocket)
+                   render_template, session, websocket, request)
 
 from camus import db, message_handler
 from camus.forms import CreateRoomForm, JoinRoomForm
 from camus.models import Client, Room
 from camus.util import commit_database
 
+import json
+
+
 bp = Blueprint('main', __name__)
+
+
+@bp.route("/create_room")
+async def create_room():
+    room_name = request.args.get("name")
+    room_password = request.args.get("password")
+    room = Room(guest_limit=2, is_public=False)
+    room.set_name(room_name)
+    room.set_password(room_password)
+    db.session.add(room)
+    commit_database(reraise=True)
+    return json.dumps({"status": "success"})
 
 
 @bp.route('/about')
