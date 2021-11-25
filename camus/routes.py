@@ -20,7 +20,7 @@ bp = Blueprint('main', __name__)
 async def create_room():
     room_name = request.args.get("name")
     room_password = request.args.get("password")
-    room = Room(guest_limit=2, is_public=False)
+    room = Room(is_public=False)
     room.set_name(room_name)
     room.set_password(room_password)
     db.session.add(room)
