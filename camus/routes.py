@@ -3,7 +3,7 @@ import logging
 
 import sqlalchemy
 from quart import (Blueprint, copy_current_websocket_context, flash, redirect,
-                   render_template, session, websocket, request)
+                   render_template, session, websocket, request, Response)
 
 from camus import db, message_handler
 from camus.forms import CreateRoomForm, JoinRoomForm
@@ -18,45 +18,57 @@ bp = Blueprint('main', __name__)
 
 @bp.route("/create_room")
 async def create_room():
-    room_name = request.args.get("name")
-    room_password = request.args.get("password")
-    room = Room(is_public=False)
-    room.set_name(room_name)
-    room.set_password(room_password)
-    db.session.add(room)
-    commit_database(reraise=True)
-    return json.dumps({"status": "success"})
+    try:
+        room_name = request.args.get("name")
+        room_password = request.args.get("password")
+        room = Room(is_public=False)
+        room.set_name(room_name)
+        room.set_password(room_password)
+        db.session.add(room)
+        commit_database(reraise=True)
+        return Response(
+                json.dumps({"status": "success"}),
+                mimetype="application/json"
+                )
+    except Exception as e:
+        print(e)
+        return Response(
+                json.dumps({"status": "failure"}),
+                mimetype="application/json"
+                )
 
 
-@bp.route('/about')
-async def about():
-    return redirect('/#why-camus')
+
+# @bp.route('/about')
+# async def about():
+#     return redirect('/#why-camus')
 
 
 @bp.route('/', methods=['GET', 'POST'])
 async def index():
-    create_room_form = CreateRoomForm()
-    if create_room_form.validate_on_submit():
-        form = create_room_form
-        name = form.room_name.data
-        password = form.password.data
-        is_public = form.public.data
-        guest_limit = form.guest_limit.data
+    return redirect("https://canwetalk.app/")
+    # create_room_form = CreateRoomForm()
+    # if create_room_form.validate_on_submit():
+    #     form = create_room_form
+    #     name = form.room_name.data
+    #     password = form.password.data
+    #     is_public = form.public.data
+    #     guest_limit = form.guest_limit.data
 
-        try:
-            room = Room(guest_limit=guest_limit, is_public=is_public)
-            room.set_name(name)
-            if password:
-                room.set_password(password)
-            db.session.add(room)
-            commit_database(reraise=True)
+    #     try:
+    #         room = Room(guest_limit=guest_limit, is_public=is_public)
+    #         room.set_name(name)
+    #         if password:
+    #             room.set_password(password)
+    #         db.session.add(room)
+    #         commit_database(reraise=True)
 
-            return redirect('/room/{}'.format(room.slug), code=307)
-        except sqlalchemy.exc.IntegrityError:
-            await flash('The room name "{}" is not available'.format(name))
+    #         return redirect('/room/{}'.format(room.slug), code=307)
+    #     except sqlalchemy.exc.IntegrityError:
+    #         await flash('The room name "{}" is not available'.format(name))
 
-    return await render_template(
-        'chat.html', create_room_form=create_room_form)
+    # return await render_template(
+    #     'chat.html', create_room_form=create_room_form)
 
 
 # The `/chat` route is deprecated.
@@ -71,6 +83,22 @@ async def chat_index():
 async def room(room_id):
     room = Room.query.filter_by(slug=room_id).first_or_404()
 
+    if request.args.get("password"):
+        password = request.args.get("password")
+        client = room.authenticate(password)
+        if client:
+            db.session.add(client)
+            commit_database(reraise=True)
+            session['id'] = client.uuid
+
+            return await render_template(
+                'chatroom.html',
+                title='Can We Talk | {}'.format(room.name))
+
+        # Authentication failed
+        status_code = 401
+        await flash('Invalid password')
+
     if room.is_full():
         return 'Guest limit already reached', 418
 
@@ -82,7 +110,7 @@ async def room(room_id):
         session['id'] = client.uuid
 
         return await render_template(
-            'chatroom.html', title='Camus | {}'.format(room.name))
+            'chatroom.html', title='Can We Talk | {}'.format(room.name))
 
     # A password is required to join the room
     status_code = 200
@@ -97,14 +125,15 @@ async def room(room_id):
             session['id'] = client.uuid
 
             return await render_template(
-                'chatroom.html', title='Camus | {}'.format(room.name))
+                'chatroom.html',
+                title='Can We Talk | {}'.format(room.name))
 
         # Authentication failed
         status_code = 401
         await flash('Invalid password')
 
     return (
-        (await render_template('join-room.html', title='Camus | Join a room',
+        (await render_template('join-room.html', title='Can We Talk | Join a room',
                                form=form, room=room)),
         status_code)
 
@@ -145,7 +174,7 @@ async def public():
     public_rooms = Room.query.filter_by(is_public=True).all()
 
     return await render_template(
-        'public.html', title='Camus Video Chat | Public Rooms',
+        'public.html', title='Can We Talk | Public Rooms',
         public_rooms=public_rooms)
 
 
