@@ -1,10 +1,83 @@
 {% extends "react-base.html" %}
 
-{% block robots %}<meta name="robots" content="noindex, nofollow">{% endblock robots %}
+{% block robots %}
+<meta name="robots" content="noindex, nofollow">
+<style>
+* {
+  max-height: calc(100vh - 40px);
+}
+.invite-box {
+  display: none;
+}
+[aria-label="Open settings window"] {
+  display: none;
+}
+[aria-label="Open users window"] {
+  display: none;
+}
+#dot {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: #f00;
+  z-index: 0;
+}
+</style>
+{% endblock robots %}
 
 {% block content %}
+<span id="dot"></span>
 <div id="react-root" class="react-root">
+</div>
+<div class="dialog fade-in" style="
+                            position: absolute;
+                            top: 50%;
+                            left: 50%;
+                            width: 100%;
+                            height: 100%;
+                            z-index:10000;
+                            transform: translate(-50%, -50%);
+                            ">
+  <h2>Before you enter</h2>
+  <ol>
+    <li>Video and voice are optional. Do not pressure others to use either.</li>
+    <li>Be helpful, and validate peoples' concerns.</li>
+    <li>If it's something a bully would do, don't do it :)</li>
+  </ol>
+  <form id="beforeCall">
+    <input type="submit" value="Okay, understood!">
+  </form>
 </div>
 
 <script src="{{ url_for('static', filename='dist/index.js') }}"></script>
+<script>
+const yayText = () => {
+  let dot = document.querySelector('#dot');
+  if (!!dot)
+    dot.style.zIndex = 1;
+};
+document.querySelector("#beforeCall")
+  .addEventListener("submit", (evt) => {
+    evt.preventDefault();
+    document.querySelector("#beforeCall")
+      .parentElement
+      .style.display = "None";
+  });
+const observer = new MutationObserver((mutations, me) => {
+  if (!!(document.querySelector("#video-stage"))){
+    let dot = document.querySelector('#dot');
+    if (!!dot)
+      dot.style.zIndex = 0;
+    return;
+  }
+});
+observer.observe(document, {
+  childList: true,
+  subtree: true
+});
+</script>
 {% endblock %}
